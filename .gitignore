@@ -1,0 +1,21 @@
+@'
+# Claude Code
+.claude/
+CLAUDE.md
+
+# Credentials & secrets
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+
+# Dependencies & generated files
+node_modules/
+.venv/
+venv/
+__pycache__/
+dist/
+build/
+*.log
+'@ | Set-Content -Encoding UTF8 .gitignoregit 
