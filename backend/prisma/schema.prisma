@@ -1,0 +1,296 @@
+// Humanis Insight - rancangan skema fondasi.
+//
+// CATATAN PENTING:
+// Skema ini adalah proposal fondasi. Yang disahkan sekolah baru matriks akses
+// modul dan kebutuhan pelaporan berkala. Entitas domain bisnis yang belum
+// memiliki spesifikasi disetujui tetap TIDAK dimodelkan di sini.
+//
+// Konvensi:
+// - Primary key memakai UUID, bukan NIP, NISN, atau nomor/value Rowe lain.
+// - Nama tabel memakai snake_case plural.
+// - Kolom waktu memakai timestamptz.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/infrastructure/persistence/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  // Prisma 7 memindahkan URL koneksi ke prisma.config.ts.
+  // Lihat backend/prisma.config.ts.
+}
+
+// ---------------------------------------------------------------------------
+// Identity
+// ---------------------------------------------------------------------------
+
+model User {
+  id          String   @id @default(uuid()) @db.Uuid
+  /// Login identifier sesuai Proposal Revisi v1.1 (login berbasis NIP).
+  /// Nullable karena akun non-login (misalnya alumni tanpa akun) belum diputuskan.
+  nip         String?  @unique
+  displayName String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+
+  userRoles   UserRole[]
+  sessions    Session[]
+  auditEvents AuditEvent[] @relation("AuditActor")
+  reports     Report[] @relation("ReportAuthor")
+  revisions   ReportRevision[] @relation("RevisionAuthor")
+
+  @@map("users")
+}
+
+model Role {
+  id          String   @id @default(uuid()) @db.Uuid
+  /// Kunci stabil: KEPALA_SEKOLAH, ADMIN, BK, GURU, TATA_USAHA.
+  key         String   @unique
+  label       String
+  description String?
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+
+  userRoles       UserRole[]
+  rolePermissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Module {
+  id          String       @id @default(uuid()) @db.Uuid
+  /// Kunci stabil: HUMANIS, TATA_USAHA, RIASEC, EPOINT, ALUMNI, PRESTA, ERAPORT.
+  key         String       @unique
+  label       String
+  description String?
+  status      ModuleStatus @default(AWAITING_SPECIFICATION)
+  sortOrder   Int          @default(0)
+  createdAt   DateTime     @default(now()) @db.Timestamptz(6)
+
+  rolePermissions RolePermission[]
+  reports         Report[]
+
+  @@map("modules")
+}
+
+enum ModuleStatus {
+  /// Modul ada di matriks akses sekolah tetapi spesifikasi fungsinya belum disetujui.
+  AWAITING_SPECIFICATION
+  IN_DEVELOPMENT
+  ACTIVE
+  PAUSED
+}
+
+model Permission {
+  id       String @id @default(uuid()) @db.Uuid
+  /// Kunci stabil aksi: MODULE_ACCESS, CREATE, UPDATE, VERIFY, EXPORT, dan seterusnya.
+  key      String @unique
+  label    String
+  /// Menandai aksi yang katalognya ada tetapi belum pernah diberikan kepada role mana pun.
+  isActionApproved Boolean @default(false)
+
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           String @id @default(uuid()) @db.Uuid
+  roleId       String @db.Uuid
+  moduleId     String @db.Uuid
+  permissionId String @db.Uuid
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  module     Module     @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, moduleId, permissionId])
+  @@index([moduleId])
+  @@index([roleId])
+
+  @@map("role_permissions")
+}
+
+model UserRole {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  roleId    String    @db.Uuid
+  grantedAt DateTime  @default(now()) @db.Timestamptz(6)
+  /// Alasan pemberian role. Berguna saat audit menelusuri perubahan kewenangan.
+  grantNote String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@index([roleId])
+
+  @@map("user_roles")
+}
+
+model Session {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  /// Hash dari token sesi. Token mentah tidak pernah disimpan.
+  tokenHash String    @unique
+  expiresAt DateTime  @db.Timestamptz(6)
+  revokedAt DateTime? @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  lastSeenAt DateTime? @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+
+  @@map("sessions")
+}
+
+// ---------------------------------------------------------------------------
+// Reporting
+// ---------------------------------------------------------------------------
+
+model AcademicYear {
+  id        String  @id @default(uuid()) @db.Uuid
+  /// Label siap tampil, contoh: "2026/2027".
+  label     String  @unique
+  startYear Int
+  endYear   Int
+  isActive  Boolean @default(false)
+
+  periods ReportingPeriod[]
+
+  @@map("academic_years")
+}
+
+model OrganizationalUnit {
+  id       String  @id @default(uuid()) @db.Uuid
+  code     String  @unique
+  name     String
+  parentId String? @db.Uuid
+
+  parent   OrganizationalUnit?  @relation("OrgTree", fields: [parentId], references: [id])
+  children OrganizationalUnit[] @relation("OrgTree")
+  reports  Report[]
+
+  @@index([parentId])
+
+  @@map("organizational_units")
+}
+
+model ReportingPeriod {
+  id             String              @id @default(uuid()) @db.Uuid
+  /// Kunci periode yang stabil. Record tidak boleh berpindah periode diam-diam.
+  periodKey      String              @unique
+  kind           ReportingPeriodKind
+  academicYearId String?             @db.Uuid
+  calendarYear   Int?
+  calendarMonth  Int?
+  semesterSequence Int?
+  /// Definisi periode dibekukan saat penulisan agar perubahan kalender tidak
+  /// mengubah makna laporan historis.
+  definition     Json
+  startsAt       DateTime?           @db.Timestamptz(6)
+  endsAt         DateTime?           @db.Timestamptz(6)
+  /// True selama kalender semester belum disahkan sekolah.
+  isProvisional  Boolean             @default(true)
+  createdAt      DateTime            @default(now()) @db.Timestamptz(6)
+
+  academicYear AcademicYear? @relation(fields: [academicYearId], references: [id])
+  reports      Report[]
+
+  @@index([kind, calendarYear, calendarMonth])
+  @@index([academicYearId, kind])
+
+  @@map("reporting_periods")
+}
+
+enum ReportingPeriodKind {
+  MONTHLY
+  SEMESTER
+  ANNUAL
+}
+
+model Report {
+  id                 String       @id @default(uuid()) @db.Uuid
+  moduleId           String       @db.Uuid
+  reportingPeriodId  String       @db.Uuid
+  organizationalUnitId String      @db.Uuid
+  authorUserId       String       @db.Uuid
+  status             ReportStatus @default(DRAFT)
+  content            Json
+  /// Definisi metrik beserta strategi agregasi. Tidak semua metrik boleh dijumlahkan.
+  metricDefinitions  Json?
+  submittedAt        DateTime?    @db.Timestamptz(6)
+  createdAt          DateTime     @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime     @updatedAt @db.Timestamptz(6)
+
+  module             Module             @relation(fields: [moduleId], references: [id])
+  reportingPeriod    ReportingPeriod    @relation(fields: [reportingPeriodId], references: [id])
+  organizationalUnit OrganizationalUnit @relation(fields: [organizationalUnitId], references: [id])
+  author             User               @relation("ReportAuthor", fields: [authorUserId], references: [id])
+  revisions          ReportRevision[]
+
+  @@unique([moduleId, reportingPeriodId, organizationalUnitId])
+  @@index([moduleId, status])
+  @@index([reportingPeriodId])
+
+  @@map("reports")
+}
+
+enum ReportStatus {
+  DRAFT
+  SUBMITTED
+  /// Nilai berikut dicadangkan untuk alur persetujuan dan kunci periode.
+  /// Belum ada transisi yang diimplementasikan untuk nilai-nilai ini.
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  LOCKED
+}
+
+model ReportRevision {
+  id              String       @id @default(uuid()) @db.Uuid
+  reportId        String       @db.Uuid
+  revision        Int
+  status          ReportStatus
+  content         Json
+  changedByUserId String       @db.Uuid
+  changeNote      String?
+  createdAt       DateTime     @default(now()) @db.Timestamptz(6)
+
+  report    Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  changedBy User   @relation("RevisionAuthor", fields: [changedByUserId], references: [id])
+
+  @@unique([reportId, revision])
+  @@index([changedByUserId])
+
+  @@map("report_revisions")
+}
+
+// ---------------------------------------------------------------------------
+// Audit
+// ---------------------------------------------------------------------------
+
+model AuditEvent {
+  id          String   @id @default(uuid()) @db.Uuid
+  actorUserId String?  @db.Uuid
+  /// Label aktor yang aman untuk ditampilkan, termasuk untuk aksi sistem.
+  actorLabel  String
+  action      String
+  targetType  String
+  targetId    String?
+  requestId   String?
+  /// Metadata aman. Tidak boleh memuat data pribadi atau rahasia.
+  metadata    Json?
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+
+  actor User? @relation("AuditActor", fields: [actorUserId], references: [id])
+
+  @@index([createdAt])
+  @@index([actorUserId, action])
+  @@index([targetType, targetId])
+
+  @@map("audit_events")
+}
