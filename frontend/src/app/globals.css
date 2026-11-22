@@ -1,0 +1,73 @@
+@import 'tailwindcss';
+
+/*
+ * Token visual diambil dari design.md.
+ * Seluruh warna komponen harus memakai token di sini. Jangan menambah
+ * nilai warna baru di dalam komponen.
+ */
+@theme {
+  --color-navy: #123568;
+  --color-sidebar: #171717;
+  --color-sidebar-surface: #222222;
+  --color-orange: #e88a2e;
+  --color-cream: #f8f3e8;
+  --color-surface: #fffdf8;
+  --color-yellow: #f5df79;
+  --color-pink: #efaeD1;
+  --color-green: #b3ca8a;
+  --color-blue: #b5d0ea;
+  --color-lavender: #d3c7e8;
+  --color-line: #e5dfd4;
+  --color-ink: #2b3446;
+  --color-muted: #5e5a56;
+
+  --font-sans:
+    var(--font-plus-jakarta-sans), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+/*
+ * Base
+ */
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-cream);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  /*
+   * Fokus keyboard harus selalu terlihat.
+   */
+  :focus-visible {
+    outline: 2px solid var(--color-navy);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  /*
+   * Angka nominal memakai tabular numerals.
+   */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/*
+ * Hormati preferensi pengguna yang mengurangi animasi.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

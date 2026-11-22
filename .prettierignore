@@ -1,0 +1,7 @@
+node_modules
+.next
+dist
+coverage
+backend/prisma/generated
+Humanis Insight.fig
+package-lock.json
