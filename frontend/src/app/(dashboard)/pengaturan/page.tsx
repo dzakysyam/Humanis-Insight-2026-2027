@@ -1,6 +1,7 @@
-import { notFound } from 'next/navigation';
-import { PageHeader, Panel } from '@/components/ui/page-header';
-import { StatusBadge } from '@/components/ui/status-badge';
+import { notFound, redirect } from 'next/navigation';
+import { RbacManager } from '@/components/admin/rbac-manager';
+import { PageHeader } from '@/components/ui/page-header';
+import { getServices } from '@/lib/server/services';
 import { getCurrentUser } from '@/lib/server/session';
 
 /**
@@ -17,35 +18,25 @@ export default async function PengaturanPage() {
     return null;
   }
 
-  if (!user.roles.includes('ADMIN')) {
+  if (user.roles.includes('SISWA')) {
+    redirect('/siswa');
+  }
+
+  if (!user.roles.includes('ADMIN') && !user.roles.includes('KEPALA_SEKOLAH')) {
     notFound();
   }
+
+  const services = getServices();
+  const accounts = await services.identityRepository.listAccounts();
 
   return (
     <>
       <PageHeader
-        title="Pengaturan dan RBAC"
-        description="Pengelolaan akun, role, konfigurasi, dan audit sesuai kewenangan."
-      >
-        <StatusBadge tone="coming_soon" />
-      </PageHeader>
+        title="Kelola User & Akses"
+        description="Kelola akun pengguna, pemetaan SSO internal, penugasan role, dan matriks akses modul."
+      />
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Panel title="Status fitur">
-          <p className="text-sm text-muted">
-            Pengelolaan akun dan role belum dibangun. Skema data untuk role, permission, user role, dan audit
-            event sudah disiapkan di fondasi, tetapi antarmuka dan alurnya menunggu persetujuan sekolah.
-          </p>
-        </Panel>
-
-        <Panel title="Kontrol akses saat ini">
-          <p className="text-sm text-muted">
-            Akses modul dijalankan di server pada setiap permintaan berdasarkan matriks akses yang
-            disahkan sekolah. Aksi di luar akses modul, seperti membuat, mengubah, atau mengekspor data,
-            ditolak sampai sekolah menyetujui matriks aksinya.
-          </p>
-        </Panel>
-      </div>
+      <RbacManager initialAccounts={accounts} currentUserId={user.id} />
     </>
   );
 }

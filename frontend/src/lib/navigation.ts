@@ -1,18 +1,35 @@
 import type { ModuleKey, RoleKey } from '@humanis/backend';
 import { canAccessModule } from '@humanis/backend';
 
-export type NavGroupKey = 'UMUM' | 'SUMBER DAYA MANUSIA' | 'SISTEM';
+export type NavGroupKey =
+  | 'UMUM'
+  | 'PENGAWASAN & EVALUASI'
+  | 'KONFIGURASI & MASTER DATA'
+  | 'SUMBER DAYA MANUSIA'
+  | 'SISTEM';
+
+export type NavIconKey =
+  | 'humanis'
+  | 'folder'
+  | 'graduation'
+  | 'medal'
+  | 'check'
+  | 'chart'
+  | 'layers'
+  | 'users'
+  | 'sliders'
+  | 'settings'
+  | 'sso'
+  | 'report'
+  | 'megaphone'
+  | 'student';
 
 export type NavItem = {
   readonly label: string;
   readonly href: string;
   readonly description: string;
-  /**
-   * Modul sekolah yang mengunci item ini. Null berarti item bukan modul
-   * sekolah, misalnya halaman pengaturan internal.
-   */
+  readonly icon: NavIconKey;
   readonly moduleKey: ModuleKey | null;
-  /** Role yang boleh melihat item ini di navigasi. */
   readonly visibleTo: readonly RoleKey[] | null;
 };
 
@@ -21,32 +38,146 @@ export type NavGroup = {
   readonly items: readonly NavItem[];
 };
 
-/**
- * Navigasi aplikasi.
- *
- * Tiga grup mengikuti design.md. Modul sekolah hanya muncul bila role
- * pengguna punya akses modul tersebut pada matriks akses sekolah.
- *
- * Visibilitas navigasi adalah alat bantu arahkan, bukan lapisan keamanan.
- * Otorisasi sesungguhnya tetap dijalankan di server pada setiap endpoint.
- */
-export const NAV_GROUPS: readonly NavGroup[] = [
+const KEPALA_SEKOLAH_GROUPS: readonly NavGroup[] = [
   {
     key: 'UMUM',
     items: [
       {
+        label: 'Dashboard Humanis Insight',
+        href: '/dashboard',
+        description: 'Ringkasan eksekutif kinerja sekolah dan progres lintas bidang.',
+        icon: 'humanis',
+        moduleKey: 'HUMANIS',
+        visibleTo: ['KEPALA_SEKOLAH'],
+      },
+      {
+        label: 'Dashboard Tata Usaha',
+        href: '/modul/tata_usaha',
+        description: 'Ringkasan administrasi tata usaha dan laporan keuangan siswa.',
+        icon: 'folder',
+        moduleKey: 'TATA_USAHA',
+        visibleTo: ['KEPALA_SEKOLAH'],
+      },
+      {
+        label: 'Dashboard Tracer Study',
+        href: '/modul/alumni',
+        description: 'Ringkasan pelacakan lulusan dan respons alumni.',
+        icon: 'graduation',
+        moduleKey: 'ALUMNI',
+        visibleTo: ['KEPALA_SEKOLAH'],
+      },
+      {
+        label: 'Dashboard Presta',
+        href: '/modul/presta',
+        description: 'Ringkasan presensi dan rekap kehadiran.',
+        icon: 'medal',
+        moduleKey: 'PRESTA',
+        visibleTo: ['KEPALA_SEKOLAH'],
+      },
+    ],
+  },
+  {
+    key: 'PENGAWASAN & EVALUASI',
+    items: [
+      {
+        label: 'Persetujuan & Tindak Lanjut',
+        href: '/humanis/persetujuan',
+        description: 'Validasi laporan kinerja PIC dan catatan arahan Kepala Sekolah.',
+        icon: 'check',
+        moduleKey: 'HUMANIS',
+        visibleTo: ['KEPALA_SEKOLAH'],
+      },
+      {
+        label: 'Monitoring Seluruh Bidang',
+        href: '/humanis/monitoring',
+        description: 'Pemantauan capaian indikator KPI seluruh bidang kerja.',
+        icon: 'chart',
+        moduleKey: 'HUMANIS',
+        visibleTo: ['KEPALA_SEKOLAH'],
+      },
+    ],
+  },
+  {
+    key: 'KONFIGURASI & MASTER DATA',
+    items: [
+      {
+        label: 'Kelola Master Bidang',
+        href: '/humanis/master-bidang',
+        description: 'Kelola daftar bidang kerja sekolah.',
+        icon: 'layers',
+        moduleKey: 'HUMANIS',
+        visibleTo: ['KEPALA_SEKOLAH'],
+      },
+      {
+        label: 'Kelola User & Akses',
+        href: '/pengaturan',
+        description: 'Kelola akun SSO, penugasan role, dan matriks akses modul.',
+        icon: 'users',
+        moduleKey: null,
+        visibleTo: ['KEPALA_SEKOLAH'],
+      },
+      {
+        label: 'Kelola Master Data (KPI)',
+        href: '/humanis/master-kpi',
+        description: 'Kelola indikator KPI, bobot, target, prioritas, dan PIC.',
+        icon: 'sliders',
+        moduleKey: 'HUMANIS',
+        visibleTo: ['KEPALA_SEKOLAH'],
+      },
+      {
+        label: 'Pengaturan Sistem',
+        href: '/humanis/pengaturan-sistem',
+        description: 'Periode aktif, status integrasi Google Drive, dan profil sekolah.',
+        icon: 'settings',
+        moduleKey: 'HUMANIS',
+        visibleTo: ['KEPALA_SEKOLAH'],
+      },
+    ],
+  },
+  {
+    key: 'SISTEM',
+    items: [
+      {
+        label: 'SSO SMK Tiara Nusa One',
+        href: '/modul',
+        description: 'Portal SSO lintas aplikasi dan modul sekolah.',
+        icon: 'sso',
+        moduleKey: null,
+        visibleTo: ['KEPALA_SEKOLAH'],
+      },
+    ],
+  },
+];
+
+const GENERAL_STAFF_ROLES: readonly RoleKey[] = ['ADMIN', 'BK', 'GURU', 'TATA_USAHA'];
+
+const GENERAL_GROUPS: readonly NavGroup[] = [
+  {
+    key: 'UMUM',
+    items: [
+      {
+        label: 'Beranda Siswa',
+        href: '/siswa',
+        description: 'Identitas dan informasi milik siswa sendiri.',
+        icon: 'student',
+        moduleKey: null,
+        visibleTo: ['SISWA'],
+      },
+      {
         label: 'Dashboard',
         href: '/dashboard',
-        description: 'Pusat monitoring Kepala Sekolah.',
+        description: 'Ringkasan modul yang dapat diakses.',
+        icon: 'humanis',
         moduleKey: null,
-        visibleTo: null,
+        visibleTo: GENERAL_STAFF_ROLES,
       },
       {
         label: 'Portal Modul',
         href: '/modul',
         description: 'Daftar modul sekolah dan status ketersediaan data.',
+        icon: 'sso',
         moduleKey: null,
-        visibleTo: null,
+        visibleTo: GENERAL_STAFF_ROLES,
       },
     ],
   },
@@ -56,9 +187,10 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       {
         label: 'Humanis Insight',
         href: '/modul/humanis',
-        description: 'Performa dan kinerja guru.',
+        description: 'Pelaporan dan pantauan kinerja guru/PIC.',
+        icon: 'chart',
         moduleKey: 'HUMANIS',
-        visibleTo: null,
+        visibleTo: GENERAL_STAFF_ROLES,
       },
     ],
   },
@@ -69,20 +201,23 @@ export const NAV_GROUPS: readonly NavGroup[] = [
         label: 'Pusat Laporan',
         href: '/laporan',
         description: 'Pelaporan bulanan, semester, dan tahunan.',
+        icon: 'report',
         moduleKey: null,
-        visibleTo: null,
+        visibleTo: GENERAL_STAFF_ROLES,
       },
       {
         label: 'Pengumuman Internal',
         href: '/pengumuman',
         description: 'Informasi internal sekolah.',
+        icon: 'megaphone',
         moduleKey: null,
-        visibleTo: null,
+        visibleTo: GENERAL_STAFF_ROLES,
       },
       {
-        label: 'Pengaturan & RBAC',
+        label: 'Kelola User & Akses',
         href: '/pengaturan',
-        description: 'Akun, role, dan konfigurasi.',
+        description: 'Akun SSO, role, dan matriks akses modul.',
+        icon: 'users',
         moduleKey: null,
         visibleTo: ['ADMIN'],
       },
@@ -92,18 +227,26 @@ export const NAV_GROUPS: readonly NavGroup[] = [
 
 /**
  * Saring navigasi berdasarkan role pengguna.
+ * Kepala Sekolah memakai struktur 4 grup sesuai desain navbar Kepala Sekolah.
  */
 export function visibleNavGroups(roles: readonly RoleKey[]): NavGroup[] {
-  return NAV_GROUPS.map((group) => ({
-    key: group.key,
-    items: group.items.filter((item) => {
-      if (item.visibleTo && !item.visibleTo.some((role) => roles.includes(role))) {
-        return false;
-      }
-      if (item.moduleKey && !roles.some((role) => canAccessModule(role, item.moduleKey as ModuleKey))) {
-        return false;
-      }
-      return true;
-    }),
-  })).filter((group) => group.items.length > 0);
+  const source = roles.includes('KEPALA_SEKOLAH') ? KEPALA_SEKOLAH_GROUPS : GENERAL_GROUPS;
+
+  return source
+    .map((group) => ({
+      key: group.key,
+      items: group.items.filter((item) => {
+        if (item.visibleTo && !item.visibleTo.some((role) => roles.includes(role))) {
+          return false;
+        }
+        if (
+          item.moduleKey &&
+          !roles.some((role) => canAccessModule(role, item.moduleKey as ModuleKey))
+        ) {
+          return false;
+        }
+        return true;
+      }),
+    }))
+    .filter((group) => group.items.length > 0);
 }

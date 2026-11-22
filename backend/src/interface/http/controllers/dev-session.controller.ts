@@ -57,6 +57,8 @@ export function createDevSessionController(services: AppServices) {
         nip: identity.nip,
         displayName: identity.displayName,
         roles: [parsed.data.role],
+        studentId: identity.studentId ?? null,
+        ssoProvider: parsed.data.role === 'SISWA' ? 'INTERNAL_NISN' : 'INTERNAL_NIP',
         ttlSeconds: services.env.sessionTtlSeconds,
       });
 

@@ -7,7 +7,7 @@
  * dimodelkan sebagai role yang punya akses modul.
  */
 
-export const ROLE_KEYS = ['KEPALA_SEKOLAH', 'ADMIN', 'BK', 'GURU', 'TATA_USAHA'] as const;
+export const ROLE_KEYS = ['KEPALA_SEKOLAH', 'ADMIN', 'BK', 'GURU', 'TATA_USAHA', 'SISWA'] as const;
 
 export type RoleKey = (typeof ROLE_KEYS)[number];
 
@@ -17,6 +17,7 @@ export const ROLE_LABELS: Readonly<Record<RoleKey, string>> = {
   BK: 'Bimbingan dan Konseling',
   GURU: 'Guru',
   TATA_USAHA: 'Tata Usaha',
+  SISWA: 'Siswa',
 };
 
 export function isRoleKey(value: string): value is RoleKey {

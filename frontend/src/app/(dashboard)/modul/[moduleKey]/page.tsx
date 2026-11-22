@@ -1,7 +1,6 @@
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
-import { MODULE_LABELS, canAccessModule, isModuleKey } from '@humanis/backend';
-import { listModuleRegistry } from '@humanis/backend';
+import { notFound, redirect } from 'next/navigation';
+import { MODULE_LABELS, canAccessModule, isModuleKey, listModuleRegistry } from '@humanis/backend';
 import { PageHeader, Panel } from '@/components/ui/page-header';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { getCurrentUser } from '@/lib/server/session';
@@ -27,6 +26,10 @@ export default async function ModuleDetailPage({
   const user = await getCurrentUser();
   if (!user) {
     return null;
+  }
+
+  if (user.roles.includes('SISWA')) {
+    redirect('/siswa');
   }
 
   const entry = listModuleRegistry().find((item) => item.key === normalized);

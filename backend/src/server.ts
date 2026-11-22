@@ -12,6 +12,16 @@ export { createModulesController } from './interface/http/controllers/modules.co
 export { createReportingPeriodsController } from './interface/http/controllers/reporting-periods.controller';
 export { createSessionController } from './interface/http/controllers/session.controller';
 export { createDevSessionController } from './interface/http/controllers/dev-session.controller';
+export { createAuthController } from './interface/http/controllers/auth.controller';
+export { createAdminRbacController } from './interface/http/controllers/admin-rbac.controller';
+export { createStudentMeController } from './interface/http/controllers/student-me.controller';
+export { createHumanisController } from './interface/http/controllers/humanis.controller';
+export {
+  DEMO_SSO_PASSWORD,
+  InMemoryIdentityRepository,
+} from './infrastructure/auth/in-memory-identity-repository';
+export { ScryptPasswordHasher } from './infrastructure/auth/scrypt-password-hasher';
+export { LoginRateLimiter } from './infrastructure/auth/login-rate-limiter';
 
 export { HttpError } from './interface/http/http-error';
 export { toErrorResponse, withErrorHandling } from './interface/http/responses/error-handler';

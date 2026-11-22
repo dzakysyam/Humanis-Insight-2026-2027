@@ -9,6 +9,8 @@ export type AuthenticatedUser = {
   readonly nip: string | null;
   readonly displayName: string;
   readonly roles: readonly RoleKey[];
+  readonly studentId?: string | null;
+  readonly ssoProvider?: string;
 };
 
 /**

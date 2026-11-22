@@ -100,6 +100,17 @@ export { AuthorizeModuleAccess } from './application/authorization/authorize-mod
 export { ListAccessibleModules } from './application/authorization/list-accessible-modules';
 export { CheckHealth } from './application/health/check-health';
 export { ListReportingPeriods } from './application/reporting/list-reporting-periods';
+export { AuthenticateSso } from './application/identity/authenticate-sso';
+export { ManageRbac } from './application/identity/manage-rbac';
+export {
+  SSO_PROVIDER_KINDS,
+  SSO_PROVIDER_LABELS,
+  type AccountRecord,
+  type IdentityRepository,
+  type PublicAccount,
+  type SsoProviderKind,
+} from './application/identity/ports/identity-repository-port';
+export type { PasswordHasher } from './application/identity/ports/password-hasher-port';
 
 export {
   SESSION_COOKIE_NAME,
@@ -111,4 +122,35 @@ export type { SessionIssuer } from './application/authorization/ports/session-is
 export type { DatabaseProbe, HealthCheck, HealthReport } from './application/health/check-health';
 export type { ReportingPeriodSummary } from './application/reporting/list-reporting-periods';
 
+export {
+  HUMANIS_VALUES,
+  HUMANIS_VALUE_KEYS,
+  HUMANIS_VALUE_LABELS,
+  KPI_FREQUENCIES,
+  KPI_FREQUENCY_LABELS,
+  KPI_PRIORITIES,
+  KPI_TARGET_OPERATORS,
+  PROGRESS_PERCENT_VALUES,
+  PROGRESS_STAGES,
+  SUBMISSION_STATUSES,
+  SUBMISSION_STATUS_LABELS,
+  computeFieldRecaps,
+  type FieldRecap,
+  type HumanisValueKey,
+  type KpiFrequency,
+  type KpiPriority,
+  type KpiTargetOperator,
+  type ProgressPercent,
+  type SubmissionStatus,
+} from './domain/humanis/humanis-types';
+export { HumanisService, type HumanisOverview } from './application/humanis/humanis-service';
+export type {
+  ExecutiveReflection,
+  HumanisField,
+  HumanisKpi,
+  HumanisPeriod,
+  HumanisRepository,
+  HumanisSubmission,
+  SchoolProfile,
+} from './application/humanis/ports/humanis-repository-port';
 export { MODULE_REGISTRY, listModuleRegistry, type ModuleRegistryEntry } from './modules/module-registry';

@@ -14,6 +14,8 @@ export class HmacSessionIssuer implements SessionIssuer {
     readonly nip: string | null;
     readonly displayName: string;
     readonly roles: readonly RoleKey[];
+    readonly studentId?: string | null;
+    readonly ssoProvider?: string;
     readonly ttlSeconds: number;
   }): { readonly token: string; readonly expiresAt: Date } {
     const issuedAt = Math.floor(Date.now() / 1000);
@@ -26,6 +28,8 @@ export class HmacSessionIssuer implements SessionIssuer {
         nip: input.nip,
         name: input.displayName,
         roles: input.roles,
+        ...(input.studentId !== undefined ? { studentId: input.studentId } : {}),
+        ...(input.ssoProvider !== undefined ? { ssoProvider: input.ssoProvider } : {}),
         iat: issuedAt,
         exp: expiresAtSeconds,
       },

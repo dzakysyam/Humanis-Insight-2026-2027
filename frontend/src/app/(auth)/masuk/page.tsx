@@ -1,50 +1,57 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { DevSessionPanel } from '@/components/auth/dev-session-panel';
+import { SsoLoginForm, type DemoAccountHint } from '@/components/auth/sso-login-form';
 import { PageHeader } from '@/components/ui/page-header';
-import { getServices } from '@/lib/server/services';
+import { getDemoSsoPassword, getServices } from '@/lib/server/services';
 import { getCurrentUser } from '@/lib/server/session';
 
 export const metadata: Metadata = {
   title: 'Masuk',
 };
 
-/**
- * Entry point autentikasi.
- *
- * Penyedia identitas sekolah belum ditetapkan, sehingga halaman ini
- * menampilkan status yang jujur dan tidak berpura-pura login berhasil.
- * Identitas berbasis NIP pada Proposal Revisi v1.1 masih menunggu
- * keputusan sekolah tentang penyedia identitas.
- */
 export default async function MasukPage() {
   const user = await getCurrentUser();
   if (user) {
-    redirect('/dashboard');
+    redirect(user.roles.includes('SISWA') ? '/siswa' : '/dashboard');
   }
 
   const services = getServices();
+  const isDemoMode = services.env.nodeEnv !== 'production';
   const harnessEnabled = services.env.devSessionHarnessEnabled;
 
+  let demoAccounts: DemoAccountHint[] = [];
+  if (isDemoMode) {
+    const accounts = await services.identityRepository.listAccounts();
+    const seenRole = new Set<string>();
+    demoAccounts = accounts
+      .filter((account) => account.isActive && account.isDemo)
+      .filter((account) => {
+        const primary = account.roles[0] ?? '';
+        if (seenRole.has(primary)) {
+          return false;
+        }
+        seenRole.add(primary);
+        return true;
+      })
+      .map((account) => ({
+        id: account.id,
+        identifier: account.identifier,
+        identifierKind: account.identifierKind,
+        displayName: account.displayName,
+        roles: account.roles,
+        ssoProvider: account.ssoProvider,
+      }));
+  }
+
   return (
-    <main className="mx-auto flex min-h-screen max-w-xl flex-col justify-center px-4 py-12">
+    <main className="mx-auto flex min-h-screen max-w-2xl flex-col justify-center px-4 py-12">
       <PageHeader
-        title="Masuk"
-        description="Humanis Insight memakai satu sesi login untuk seluruh modul yang berada di dalam aplikasi."
+        title="Masuk ke Humanis Insight"
+        description="Portal manajemen sekolah SMK Tiara Nusa dengan satu sesi SSO dan kontrol akses berbasis role."
       />
 
-      <section className="rounded-xl border border-line bg-surface p-6">
-        <h2 className="text-base font-semibold text-navy">Status autentikasi</h2>
-        <p className="mt-2 text-sm text-muted">
-          Penyedia identitas belum terhubung. Proposal Revisi v1.1 menetapkan login berbasis NIP, tetapi
-          mekanisme dan penyedia identitasnya belum disahkan sekolah, sehingga belum ada alur masuk yang
-          dapat dipakai pengguna.
-        </p>
-        <p className="mt-3 text-sm text-muted">
-          Sementara ini, halaman ini hanya menampilkan status. Tidak ada akun contoh yang tersimpan di
-          repository.
-        </p>
-      </section>
+      <SsoLoginForm demoAccounts={demoAccounts} demoPassword={getDemoSsoPassword()} />
 
       {harnessEnabled ? (
         <div className="mt-6">

@@ -15,6 +15,8 @@ export type SessionTokenPayload = {
   readonly nip: string | null;
   readonly name: string;
   readonly roles: readonly RoleKey[];
+  readonly studentId?: string | null;
+  readonly ssoProvider?: string;
   /** Waktu terbit, detik sejak epoch. */
   readonly iat: number;
   /** Waktu kedaluwarsa, detik sejak epoch. */

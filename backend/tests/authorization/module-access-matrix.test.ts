@@ -21,6 +21,7 @@ const EXPECTED: Record<RoleKey, readonly ModuleKey[]> = {
   BK: ['HUMANIS', 'EPOINT', 'ALUMNI', 'RIASEC', 'ERAPORT', 'PRESTA'],
   GURU: ['HUMANIS', 'ERAPORT', 'EPOINT', 'PRESTA'],
   TATA_USAHA: ['TATA_USAHA', 'HUMANIS'],
+  SISWA: [],
 };
 
 describe('matriks akses modul', () => {

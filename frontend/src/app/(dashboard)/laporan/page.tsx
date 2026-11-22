@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation';
 import { listAccessibleModules, listModuleRegistry, MODULE_LABELS } from '@humanis/backend';
 import { PageHeader, Panel } from '@/components/ui/page-header';
 import { PeriodSelector } from '@/components/reporting/period-selector';
@@ -15,6 +16,10 @@ export default async function LaporanPage() {
   const user = await getCurrentUser();
   if (!user) {
     return null;
+  }
+
+  if (user.roles.includes('SISWA')) {
+    redirect('/siswa');
   }
 
   const services = getServices();

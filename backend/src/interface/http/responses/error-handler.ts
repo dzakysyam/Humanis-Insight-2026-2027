@@ -1,3 +1,9 @@
+import {
+  AccessDeniedError,
+  NotAuthenticatedError,
+  NotFoundError,
+  ValidationError,
+} from '../../../domain/shared/domain-error';
 import type { ApiErrorBody, ApiResponseBody } from '../responses/response';
 import { ErrorCode, fail } from '../responses/response';
 import { HttpError } from '../http-error';
@@ -17,6 +23,25 @@ export function toErrorResponse(error: unknown, requestId?: string): Response {
       requestId,
     });
     return jsonResponse(body, error.status);
+  }
+
+  if (error instanceof ValidationError) {
+    return jsonResponse(
+      fail(ErrorCode.VALIDATION_ERROR, error.message, { details: error.details, requestId }),
+      400,
+    );
+  }
+
+  if (error instanceof NotAuthenticatedError) {
+    return jsonResponse(fail(ErrorCode.NOT_AUTHENTICATED, error.message, { requestId }), 401);
+  }
+
+  if (error instanceof AccessDeniedError) {
+    return jsonResponse(fail(ErrorCode.ACCESS_DENIED, error.message, { requestId }), 403);
+  }
+
+  if (error instanceof NotFoundError) {
+    return jsonResponse(fail(ErrorCode.NOT_FOUND, error.message, { requestId }), 404);
   }
 
   if (error instanceof Error && 'details' in error && Array.isArray(error.details)) {

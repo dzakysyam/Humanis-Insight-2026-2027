@@ -38,6 +38,8 @@ export function createSessionController(services: AppServices) {
             id: user.id,
             nip: user.nip,
             displayName: user.displayName,
+            studentId: user.studentId ?? null,
+            ssoProvider: user.ssoProvider ?? null,
           },
           roles: user.roles,
           accessibleModules: modules.accessible,
@@ -50,6 +52,8 @@ export function createSessionController(services: AppServices) {
     async logout(request: Request): Promise<Response> {
       const sessionToken = readSessionCookie(request);
       const user = await services.sessionProvider.resolve(sessionToken);
+
+      services.revokeSessionToken(sessionToken);
 
       if (user) {
         await services.audit.record({

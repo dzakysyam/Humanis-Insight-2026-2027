@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { MODULE_LABELS, canAccessModule, listModuleRegistry } from '@humanis/backend';
 import { PageHeader } from '@/components/ui/page-header';
 import { StatusBadge } from '@/components/ui/status-badge';
@@ -17,13 +18,19 @@ export default async function ModulPage() {
     return null;
   }
 
+  if (user.roles.includes('SISWA')) {
+    redirect('/siswa');
+  }
+
   const registry = listModuleRegistry();
+
+  const isKepsek = user.roles.includes('KEPALA_SEKOLAH');
 
   return (
     <>
       <PageHeader
-        title="Portal Modul"
-        description="Modul sekolah yang melapor ke Dashboard Kepala Sekolah. Status akses mengikuti matriks akses yang disahkan sekolah."
+        title={isKepsek ? 'SSO SMK Tiara Nusa One' : 'Portal Modul'}
+        description="Daftar modul sekolah yang terhubung dalam satu sesi SSO. Status akses mengikuti matriks akses yang disahkan sekolah."
       />
 
       <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -39,7 +46,11 @@ export default async function ModulPage() {
 
               <div className="mt-4">
                 {accessible ? (
-                  <StatusBadge tone="coming_soon" />
+                  entry.key === 'HUMANIS' ? (
+                    <StatusBadge tone="available" label="Tersedia (Mode Demo)" />
+                  ) : (
+                    <StatusBadge tone="coming_soon" />
+                  )
                 ) : (
                   <StatusBadge tone="denied" label="Tidak ada akses" />
                 )}

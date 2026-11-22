@@ -48,5 +48,7 @@ function toAuthenticatedUser(payload: SessionTokenPayload): AuthenticatedUser {
     nip: payload.nip,
     displayName: payload.name,
     roles: payload.roles,
+    ...(payload.studentId !== undefined ? { studentId: payload.studentId } : {}),
+    ...(payload.ssoProvider !== undefined ? { ssoProvider: payload.ssoProvider } : {}),
   };
 }

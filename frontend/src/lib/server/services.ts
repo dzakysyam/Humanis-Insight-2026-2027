@@ -1,4 +1,10 @@
-import { createDatabaseProbe, createPrismaClient, createServices, loadEnv } from '@humanis/backend/server';
+import {
+  DEMO_SSO_PASSWORD,
+  createDatabaseProbe,
+  createPrismaClient,
+  createServices,
+  loadEnv,
+} from '@humanis/backend/server';
 import type { AppServices } from '@humanis/backend/server';
 
 /**
@@ -13,7 +19,11 @@ const globalCache = globalThis as typeof globalThis & {
 };
 
 export function getServices(): AppServices {
-  if (globalCache.__humanisServices) {
+  if (
+    globalCache.__humanisServices?.humanisService &&
+    typeof globalCache.__humanisServices.humanisService.updateSchoolProfile === 'function' &&
+    typeof globalCache.__humanisServices.manageRbac.createAccount === 'function'
+  ) {
     return globalCache.__humanisServices;
   }
 
@@ -29,4 +39,8 @@ export function getServices(): AppServices {
 
   globalCache.__humanisServices = services;
   return services;
+}
+
+export function getDemoSsoPassword(): string | null {
+  return getServices().env.nodeEnv !== 'production' ? DEMO_SSO_PASSWORD : null;
 }

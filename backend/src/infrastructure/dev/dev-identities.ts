@@ -8,7 +8,15 @@ import type { RoleKey } from '../../domain/identity/role';
  * Harness ini tidak boleh aktif pada NODE_ENV=production.
  */
 export const DEV_IDENTITIES: Readonly<
-  Record<RoleKey, { readonly id: string; readonly nip: string; readonly displayName: string }>
+  Record<
+    RoleKey,
+    {
+      readonly id: string;
+      readonly nip: string | null;
+      readonly displayName: string;
+      readonly studentId?: string | null;
+    }
+  >
 > = {
   KEPALA_SEKOLAH: {
     id: 'demo-user-kepala-sekolah',
@@ -34,5 +42,11 @@ export const DEV_IDENTITIES: Readonly<
     id: 'demo-user-tata-usaha',
     nip: '9000000000000005',
     displayName: 'Demo Tata Usaha',
+  },
+  SISWA: {
+    id: 'demo-user-siswa-1',
+    nip: null,
+    displayName: 'Demo Siswa Satu',
+    studentId: 'demo-student-001',
   },
 };

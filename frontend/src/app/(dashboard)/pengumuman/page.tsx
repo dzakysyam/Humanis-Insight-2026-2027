@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation';
 import { PageHeader, Panel } from '@/components/ui/page-header';
 import { StatusBadge } from '@/components/ui/status-badge';
 import { getCurrentUser } from '@/lib/server/session';
@@ -12,6 +13,10 @@ export default async function PengumumanPage() {
   const user = await getCurrentUser();
   if (!user) {
     return null;
+  }
+
+  if (user.roles.includes('SISWA')) {
+    redirect('/siswa');
   }
 
   return (
