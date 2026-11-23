@@ -59,6 +59,78 @@
 }
 
 /*
+ * Utilitas Neumorphism berbasis token design.md (cream, surface, line, navy).
+ */
+@layer components {
+  .neu-card {
+    background-color: var(--color-cream);
+    box-shadow:
+      14px 14px 28px color-mix(in srgb, var(--color-line) 92%, var(--color-ink) 12%),
+      -14px -14px 28px var(--color-surface);
+  }
+
+  .neu-raised {
+    background-color: var(--color-cream);
+    box-shadow:
+      6px 6px 12px color-mix(in srgb, var(--color-line) 88%, var(--color-ink) 10%),
+      -6px -6px 12px var(--color-surface);
+  }
+
+  .neu-raised-sm {
+    background-color: var(--color-cream);
+    box-shadow:
+      4px 4px 8px color-mix(in srgb, var(--color-line) 86%, var(--color-ink) 9%),
+      -4px -4px 8px var(--color-surface);
+  }
+
+  .neu-inset {
+    background-color: var(--color-cream);
+    box-shadow:
+      inset 4px 4px 8px color-mix(in srgb, var(--color-line) 90%, var(--color-ink) 10%),
+      inset -4px -4px 8px var(--color-surface);
+  }
+
+  .neu-inset:focus-within,
+  .neu-inset:focus {
+    box-shadow:
+      inset 5px 5px 10px color-mix(in srgb, var(--color-line) 95%, var(--color-navy) 12%),
+      inset -5px -5px 10px var(--color-surface);
+  }
+
+  .neu-btn-navy {
+    background-color: var(--color-navy);
+    box-shadow:
+      6px 6px 14px color-mix(in srgb, var(--color-navy) 32%, var(--color-line)),
+      -4px -4px 10px var(--color-surface);
+  }
+
+  .neu-btn-navy:hover:not(:disabled) {
+    box-shadow:
+      8px 8px 16px color-mix(in srgb, var(--color-navy) 38%, var(--color-line)),
+      -5px -5px 12px var(--color-surface);
+  }
+
+  .neu-btn-navy:active:not(:disabled) {
+    box-shadow:
+      inset 3px 3px 6px color-mix(in srgb, var(--color-sidebar) 45%, var(--color-navy)),
+      inset -2px -2px 5px color-mix(in srgb, var(--color-blue) 25%, var(--color-navy));
+  }
+
+  .neu-btn-soft {
+    background-color: var(--color-cream);
+    box-shadow:
+      5px 5px 10px color-mix(in srgb, var(--color-line) 88%, var(--color-ink) 11%),
+      -5px -5px 10px var(--color-surface);
+  }
+
+  .neu-btn-soft:active:not(:disabled) {
+    box-shadow:
+      inset 3px 3px 6px color-mix(in srgb, var(--color-line) 90%, var(--color-ink) 10%),
+      inset -3px -3px 6px var(--color-surface);
+  }
+}
+
+/*
  * Hormati preferensi pengguna yang mengurangi animasi.
  */
 @media (prefers-reduced-motion: reduce) {

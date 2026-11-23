@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { DevSessionPanel } from '@/components/auth/dev-session-panel';
 import { SsoLoginForm, type DemoAccountHint } from '@/components/auth/sso-login-form';
-import { PageHeader } from '@/components/ui/page-header';
 import { getDemoSsoPassword, getServices } from '@/lib/server/services';
 import { getCurrentUser } from '@/lib/server/session';
 
@@ -45,19 +44,16 @@ export default async function MasukPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-2xl flex-col justify-center px-4 py-12">
-      <PageHeader
-        title="Masuk ke Humanis Insight"
-        description="Portal manajemen sekolah SMK Tiara Nusa dengan satu sesi SSO dan kontrol akses berbasis role."
-      />
+    <main className="flex min-h-screen w-full flex-col items-center justify-center bg-cream px-4 py-8 sm:px-6 lg:px-10">
+      <div className="w-full max-w-[1040px]">
+        <SsoLoginForm demoAccounts={demoAccounts} demoPassword={getDemoSsoPassword()} />
 
-      <SsoLoginForm demoAccounts={demoAccounts} demoPassword={getDemoSsoPassword()} />
-
-      {harnessEnabled ? (
-        <div className="mt-6">
-          <DevSessionPanel />
-        </div>
-      ) : null}
+        {harnessEnabled ? (
+          <div className="mx-auto mt-6 max-w-3xl">
+            <DevSessionPanel />
+          </div>
+        ) : null}
+      </div>
     </main>
   );
 }
