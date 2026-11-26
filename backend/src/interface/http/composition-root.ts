@@ -3,6 +3,11 @@ import { CheckHealth, type DatabaseProbe } from '../../application/health/check-
 import { AuthorizeModuleAccess } from '../../application/authorization/authorize-module-access';
 import { ListAccessibleModules } from '../../application/authorization/list-accessible-modules';
 import { ListReportingPeriods } from '../../application/reporting/list-reporting-periods';
+import {
+  FieldReportService,
+  SimulatedFieldGateway,
+  type FieldDecisionGateway,
+} from '../../application/reporting/field-report-service';
 import { AuthenticateSso } from '../../application/identity/authenticate-sso';
 import { ManageRbac } from '../../application/identity/manage-rbac';
 import { HumanisService } from '../../application/humanis/humanis-service';
@@ -42,6 +47,7 @@ export type AppServices = {
   readonly manageRbac: ManageRbac;
   readonly humanisService: HumanisService;
   readonly humanisRepository: HumanisRepository;
+  readonly fieldReports: FieldReportService | null;
   readonly identityRepository: IdentityRepository;
   readonly loginRateLimiter: LoginRateLimiter;
   readonly sessionProvider: SessionProvider;
@@ -58,6 +64,8 @@ export type CreateServicesOptions = {
   readonly identityRepository?: IdentityRepository;
   readonly passwordHasher?: PasswordHasher;
   readonly audit?: AuditSink;
+  readonly fieldGateway?: FieldDecisionGateway;
+  readonly fieldIntegrationKey?: string;
 };
 
 export function createServices(options: CreateServicesOptions = {}): AppServices {
@@ -80,6 +88,16 @@ export function createServices(options: CreateServicesOptions = {}): AppServices
   const loginRateLimiter = new LoginRateLimiter();
 
   const audit = options.audit ?? new LoggingAuditSink();
+  // Simulasi hanya untuk lokal dengan kunci yang disetel eksplisit; tidak tersedia pada produksi.
+  const fieldKey = options.fieldIntegrationKey ?? process.env.FIELD_SIMULATION_KEY;
+  const fieldReports =
+    env.nodeEnv !== 'production' && fieldKey && fieldKey.length >= 32
+      ? new FieldReportService(
+          sessionProvider,
+          options.fieldGateway ?? new SimulatedFieldGateway(),
+          fieldKey,
+        )
+      : null;
 
   const checkHealth = new CheckHealth({
     service: 'humanis-insight',
@@ -95,8 +113,14 @@ export function createServices(options: CreateServicesOptions = {}): AppServices
     listReportingPeriods: new ListReportingPeriods(),
     authenticateSso: new AuthenticateSso(identityRepository, passwordHasher, sessionIssuer, audit),
     manageRbac: new ManageRbac(sessionProvider, identityRepository, passwordHasher, audit),
-    humanisService: new HumanisService(sessionProvider, humanisRepository, identityRepository, audit),
+    humanisService: new HumanisService(
+      sessionProvider,
+      humanisRepository,
+      identityRepository,
+      audit,
+    ),
     humanisRepository,
+    fieldReports,
     identityRepository,
     loginRateLimiter,
     sessionProvider,

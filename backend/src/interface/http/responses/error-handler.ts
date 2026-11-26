@@ -4,6 +4,7 @@ import {
   NotFoundError,
   ValidationError,
 } from '../../../domain/shared/domain-error';
+import { FieldIntegrationError } from '../../../application/reporting/field-report-service';
 import type { ApiErrorBody, ApiResponseBody } from '../responses/response';
 import { ErrorCode, fail } from '../responses/response';
 import { HttpError } from '../http-error';
@@ -23,6 +24,10 @@ export function toErrorResponse(error: unknown, requestId?: string): Response {
       requestId,
     });
     return jsonResponse(body, error.status);
+  }
+
+  if (error instanceof FieldIntegrationError) {
+    return jsonResponse(fail(error.code, error.message, { requestId }), error.status);
   }
 
   if (error instanceof ValidationError) {

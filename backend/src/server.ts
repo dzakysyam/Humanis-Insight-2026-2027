@@ -16,6 +16,7 @@ export { createAuthController } from './interface/http/controllers/auth.controll
 export { createAdminRbacController } from './interface/http/controllers/admin-rbac.controller';
 export { createStudentMeController } from './interface/http/controllers/student-me.controller';
 export { createHumanisController } from './interface/http/controllers/humanis.controller';
+export { createFieldReportsController } from './interface/http/controllers/field-reports.controller';
 export {
   DEMO_SSO_PASSWORD,
   InMemoryIdentityRepository,
