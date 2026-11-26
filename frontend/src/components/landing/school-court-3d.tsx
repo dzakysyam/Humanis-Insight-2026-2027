@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from 'react';
 
 type Vec3 = readonly [number, number, number];
-type CameraPreset = 'corner' | 'sign' | 'top';
 
 type Face = {
   readonly points: readonly Vec3[];
@@ -34,13 +33,17 @@ type Signboard3D = {
 /**
  * Sudut kamera baku mengikuti foto sudut L lapangan & gedung SMK Tiara Nusa.
  */
-const PRESETS: Readonly<
-  Record<CameraPreset, { yaw: number; pitch: number; zoom: number; label: string }>
-> = {
-  corner: { yaw: -0.62, pitch: 0.24, zoom: 1.04, label: 'Sudut Utama' },
-  sign: { yaw: -0.82, pitch: 0.14, zoom: 1.25, label: 'Papan Nama' },
-  top: { yaw: -0.58, pitch: 0.74, zoom: 0.96, label: 'Tampak Atas' },
-};
+const REST_CAMERA = {
+  yaw: -0.62,
+  pitch: 0.24,
+  zoom: 1.02,
+} as const;
+
+const HOVER_CAMERA = {
+  zoom: 1.24,
+  yawRange: 0.22,
+  pitchRange: 0.09,
+} as const;
 
 function makeBoxFaces(
   cx: number,
@@ -219,36 +222,241 @@ function buildCornerScene(): { faces: Face[]; lines: LineSeg[]; signboard: Signb
     );
   }
 
-  // 6. GEDUNG SAYAP KIRI (sepanjang z = -5.8, dari x = -6.0 sampai x = 6.4)
-  // Lantai 1 koridor gelap
+  // 6 & 7. GEDUNG L DUA LANTAI dengan selasar (koridor) di depan ruang kelas.
+  // Setiap lantai: lantai selasar, dinding kelas, pintu, jendela, pilar, dan railing lantai 2.
+  type WingAxis = 'x' | 'z';
+  type WingBay = {
+    readonly a0: number;
+    readonly a1: number;
+    readonly details: boolean;
+    readonly rail: boolean;
+    readonly slabFront: boolean;
+  };
+  type WingSpec = {
+    readonly along: WingAxis;
+    readonly wallPlane: number;
+    readonly hallEdge: number;
+    readonly slabEdge: number;
+    readonly pillarPlane: number;
+    readonly railPlane: number;
+    readonly bays: readonly WingBay[];
+    readonly pillars: readonly number[];
+  };
+
+  const wp = (along: WingAxis, a: number, y: number, d: number): Vec3 =>
+    along === 'x' ? [a, y, d] : [d, y, a];
+  const vRect = (
+    along: WingAxis,
+    plane: number,
+    a0: number,
+    a1: number,
+    y0: number,
+    y1: number,
+  ): Vec3[] => [
+    wp(along, a0, y0, plane),
+    wp(along, a1, y0, plane),
+    wp(along, a1, y1, plane),
+    wp(along, a0, y1, plane),
+  ];
+  const hRect = (
+    along: WingAxis,
+    a0: number,
+    a1: number,
+    d0: number,
+    d1: number,
+    y: number,
+  ): Vec3[] => [
+    wp(along, a0, y, d0),
+    wp(along, a1, y, d0),
+    wp(along, a1, y, d1),
+    wp(along, a0, y, d1),
+  ];
+
+  function buildWing(spec: WingSpec) {
+    const { along } = spec;
+    const toward = Math.sign(spec.hallEdge - spec.wallPlane);
+    const detailPlane = spec.wallPlane + toward * 0.02;
+
+    for (const bay of spec.bays) {
+      const { a0, a1 } = bay;
+      const c = (a0 + a1) / 2;
+
+      // Lantai selasar lantai 1 (keramik abu)
+      faces.push({
+        points: hRect(along, a0, a1, spec.wallPlane, spec.hallEdge, 0.06),
+        fill: '#9C9E96',
+        stroke: '#8B8D85',
+        lineWidth: 0.6,
+        groundOrder: 5,
+      });
+      // Dinding ruang kelas lantai 1 (lebih teduh) dan lantai 2
+      faces.push({ points: vRect(along, spec.wallPlane, a0, a1, 0, 2.45), fill: '#B9AF92' });
+      faces.push({ points: vRect(along, spec.wallPlane, a0, a1, 2.45, 4.5), fill: '#DCD4B8' });
+      // Pelat lantai 2 = plafon selasar bawah sekaligus lantai selasar atas
+      faces.push({
+        points: hRect(along, a0, a1, spec.wallPlane, spec.slabEdge, 2.45),
+        fill: '#A9ABA2',
+        stroke: '#979990',
+        lineWidth: 0.6,
+      });
+      if (bay.slabFront) {
+        faces.push({ points: vRect(along, spec.slabEdge, a0, a1, 2.2, 2.45), fill: '#5E6560' });
+      }
+
+      if (bay.details) {
+        for (const base of [0, 2.45]) {
+          // Pintu kelas kayu
+          faces.push({
+            points: vRect(along, detailPlane, c - 0.68, c - 0.12, base + 0.06, base + 1.72),
+            fill: '#7A5236',
+            stroke: '#4A3324',
+            lineWidth: 1.2,
+            zBias: 0.4,
+          });
+          // Jendela kelas berbingkai terang
+          faces.push({
+            points: vRect(along, detailPlane, c, c + 0.8, base + 0.85, base + 1.6),
+            fill: '#34454C',
+            stroke: '#EFE8D4',
+            lineWidth: 1.4,
+            zBias: 0.4,
+          });
+          lines.push({
+            a: wp(along, c + 0.4, base + 0.85, detailPlane),
+            b: wp(along, c + 0.4, base + 1.6, detailPlane),
+            color: '#EFE8D4',
+            width: 1.2,
+            zBias: 0.45,
+          });
+        }
+      }
+
+      if (bay.rail) {
+        // Railing selasar lantai 2
+        lines.push(
+          {
+            a: wp(along, a0, 3.4, spec.railPlane),
+            b: wp(along, a1, 3.4, spec.railPlane),
+            color: '#2F3532',
+            width: 1.8,
+            zBias: 0.65,
+          },
+          {
+            a: wp(along, a0, 2.95, spec.railPlane),
+            b: wp(along, a1, 2.95, spec.railPlane),
+            color: '#2F3532',
+            width: 1.1,
+            zBias: 0.65,
+          },
+        );
+        const n = Math.max(2, Math.round((a1 - a0) / 0.34));
+        for (let k = 1; k < n; k++) {
+          const a = a0 + ((a1 - a0) * k) / n;
+          lines.push({
+            a: wp(along, a, 2.45, spec.railPlane),
+            b: wp(along, a, 3.4, spec.railPlane),
+            color: '#3A413E',
+            width: 0.9,
+            zBias: 0.6,
+          });
+        }
+      }
+    }
+
+    // Pilar selasar di tepi luar, dipisah per lantai agar tertutup pelat dengan benar
+    for (const p of spec.pillars) {
+      lines.push(
+        {
+          a: wp(along, p, 0, spec.pillarPlane),
+          b: wp(along, p, 2.2, spec.pillarPlane),
+          color: '#575E59',
+          width: 4,
+          zBias: 0.55,
+        },
+        {
+          a: wp(along, p, 2.45, spec.pillarPlane),
+          b: wp(along, p, 4.5, spec.pillarPlane),
+          color: '#575E59',
+          width: 4,
+          zBias: 0.55,
+        },
+      );
+    }
+  }
+
+  // Massa bangunan di belakang dinding kelas (tanpa sisi depan agar tidak menimpa detail)
   faces.push(
-    ...makeBoxFaces(0.2, 0, -5.8, 12.4, 2.2, 2.2, {
-      top: '#4A504B',
-      front: '#323833',
-      back: '#2A2F2B',
-      left: '#2D322E',
-      right: '#383E39',
-    }),
-  );
-  // Pelat lantai 2
-  faces.push(
-    ...makeBoxFaces(0.2, 2.2, -5.7, 12.6, 0.25, 2.4, {
-      top: '#646B65',
-      front: '#474F4A',
-      left: '#3E4540',
-      right: '#4F5752',
-    }),
-  );
-  // Lantai 2 dinding krem hangat
-  faces.push(
-    ...makeBoxFaces(0.2, 2.45, -5.8, 12.4, 2.05, 2.1, {
+    ...makeBoxFaces(0.3, 0, -6.3, 12.6, 4.5, 1.2, {
       top: '#C7BE9E',
       front: '#DCD4B8',
       back: '#C4BBA0',
       left: '#CFC7AB',
       right: '#D5CDB1',
-    }),
+    }).filter((_, i) => i !== 1),
   );
+  faces.push(
+    ...makeBoxFaces(6.1, 0, -0.15, 1.2, 4.5, 11.1, {
+      top: '#C7BE9E',
+      front: '#E2DAC0',
+      back: '#C4BBA0',
+      left: '#DCD4B8',
+      right: '#C4BBA0',
+    }).filter((_, i) => i !== 3),
+  );
+
+  // Sayap kiri: dinding kelas di z = -5.7, selasar menghadap lapangan (+z)
+  const leftBay = (a0: number, a1: number): WingBay => ({
+    a0,
+    a1,
+    details: true,
+    rail: true,
+    slabFront: true,
+  });
+  buildWing({
+    along: 'x',
+    wallPlane: -5.7,
+    hallEdge: -4.7,
+    slabEdge: -4.5,
+    pillarPlane: -4.75,
+    railPlane: -4.6,
+    bays: [
+      leftBay(-6.0, -4.3),
+      leftBay(-4.3, -2.6),
+      leftBay(-2.6, -0.9),
+      leftBay(-0.9, 0.8),
+      leftBay(0.8, 2.5),
+      leftBay(2.5, 4.5),
+      { a0: 4.5, a1: 5.5, details: false, rail: false, slabFront: false },
+    ],
+    pillars: [-5.95, -4.3, -2.6, -0.9, 0.8, 2.5, 4.5],
+  });
+
+  // Sayap kanan: dinding kelas di x = 5.5, selasar menghadap lapangan (-x)
+  const rightBay = (a0: number, a1: number): WingBay => ({
+    a0,
+    a1,
+    details: true,
+    rail: true,
+    slabFront: true,
+  });
+  buildWing({
+    along: 'z',
+    wallPlane: 5.5,
+    hallEdge: 4.5,
+    slabEdge: 4.3,
+    pillarPlane: 4.55,
+    railPlane: 4.6,
+    bays: [
+      { a0: -5.7, a1: -4.7, details: false, rail: false, slabFront: false },
+      rightBay(-4.7, -2.7),
+      rightBay(-2.7, -0.7),
+      rightBay(-0.7, 1.3),
+      rightBay(1.3, 3.3),
+      rightBay(3.3, 5.4),
+    ],
+    pillars: [-2.7, -0.7, 1.3, 3.3, 5.35],
+  });
+
   // Atap genteng abu gelap miring (sayap kiri)
   faces.push(
     ...makeBoxFaces(0.2, 4.5, -5.85, 12.8, 0.55, 2.75, {
@@ -268,57 +476,6 @@ function buildCornerScene(): { faces: Face[]; lines: LineSeg[]; signboard: Signb
     }),
   );
 
-  // Jendela & pilar lantai 2 sayap kiri
-  for (const wx of [-4.6, -2.7, -0.8, 1.1, 3.0]) {
-    faces.push({
-      points: [
-        [wx - 0.58, 2.9, -4.72],
-        [wx + 0.58, 2.9, -4.72],
-        [wx + 0.58, 4.05, -4.72],
-        [wx - 0.58, 4.05, -4.72],
-      ],
-      fill: '#232826',
-      stroke: '#3A413E',
-      lineWidth: 1,
-      zBias: 0.05,
-    });
-    // Pilar abu gelap
-    lines.push({ a: [wx + 0.92, 0, -4.68], b: [wx + 0.92, 4.5, -4.68], color: '#474D49', width: 3.2, zBias: 0.08 });
-  }
-  // Railing balkon sayap kiri
-  lines.push(
-    { a: [-5.8, 3.02, -4.62], b: [4.6, 3.02, -4.62], color: '#2F3532', width: 1.8, zBias: 0.1 },
-    { a: [-5.8, 2.65, -4.62], b: [4.6, 2.65, -4.62], color: '#2F3532', width: 1.1, zBias: 0.1 },
-  );
-
-  // 7. GEDUNG SAYAP KANAN (sepanjang x = 5.6, dari z = -4.7 sampai z = 5.4)
-  // Lantai 1 koridor gelap
-  faces.push(
-    ...makeBoxFaces(5.6, 0, 0.35, 2.2, 2.2, 10.1, {
-      top: '#4A504B',
-      front: '#383E39',
-      left: '#353B36',
-      right: '#2B302C',
-    }),
-  );
-  // Pelat lantai 2
-  faces.push(
-    ...makeBoxFaces(5.5, 2.2, 0.35, 2.4, 0.25, 10.2, {
-      top: '#646B65',
-      front: '#4D5550',
-      left: '#4A524D',
-      right: '#3E4540',
-    }),
-  );
-  // Lantai 2 dinding krem hangat
-  faces.push(
-    ...makeBoxFaces(5.6, 2.45, 0.35, 2.1, 2.05, 10.1, {
-      top: '#C7BE9E',
-      front: '#D5CDB1',
-      left: '#E2DAC0',
-      right: '#C4BBA0',
-    }),
-  );
   // Atap genteng abu gelap miring (sayap kanan)
   faces.push(
     ...makeBoxFaces(5.65, 4.5, 0.35, 2.75, 0.55, 10.5, {
@@ -335,28 +492,6 @@ function buildCornerScene(): { faces: Face[]; lines: LineSeg[]; signboard: Signb
       left: '#525B58',
       right: '#464E4B',
     }),
-  );
-
-  // Jendela & pilar lantai 2 sayap kanan (menghadap lapangan ke arah -x)
-  for (const wz of [-3.2, -1.2, 0.8, 2.8, 4.3]) {
-    faces.push({
-      points: [
-        [4.52, 2.9, wz - 0.62],
-        [4.52, 2.9, wz + 0.62],
-        [4.52, 4.05, wz + 0.62],
-        [4.52, 4.05, wz - 0.62],
-      ],
-      fill: '#232826',
-      stroke: '#3A413E',
-      lineWidth: 1,
-      zBias: 0.05,
-    });
-    lines.push({ a: [4.48, 0, wz + 0.96], b: [4.48, 4.5, wz + 0.96], color: '#474D49', width: 3.2, zBias: 0.08 });
-  }
-  // Railing balkon sayap kanan
-  lines.push(
-    { a: [4.42, 3.02, -4.6], b: [4.42, 3.02, 5.1], color: '#2F3532', width: 1.8, zBias: 0.1 },
-    { a: [4.42, 2.65, -4.6], b: [4.42, 2.65, 5.1], color: '#2F3532', width: 1.1, zBias: 0.1 },
   );
 
   // 8. PAPAN NAMA 3D "SMK TIARA NUSA" di fasad atas sayap kanan dekat sudut L (persis foto)
@@ -390,10 +525,22 @@ function buildCornerScene(): { faces: Face[]; lines: LineSeg[]; signboard: Signb
     zBias: 0.12,
   });
   // Ring basket
-  lines.push({ a: [-1.72, 2.32, -4.18], b: [-1.38, 2.32, -4.18], color: '#E88A2E', width: 2.2, zBias: 0.14 });
+  lines.push({
+    a: [-1.72, 2.32, -4.18],
+    b: [-1.38, 2.32, -4.18],
+    color: '#E88A2E',
+    width: 2.2,
+    zBias: 0.14,
+  });
 
   // 10. Tiang bendera tinggi di depan sayap kanan dekat papan nama (sesuai foto)
-  lines.push({ a: [4.05, 0, -0.45], b: [4.05, 5.4, -0.45], color: '#E5E1D8', width: 2.1, zBias: 0.15 });
+  lines.push({
+    a: [4.05, 0, -0.45],
+    b: [4.05, 5.4, -0.45],
+    color: '#E5E1D8',
+    width: 2.1,
+    zBias: 0.15,
+  });
 
   return { faces, lines, signboard };
 }
@@ -431,29 +578,29 @@ function projectPoint(
 
 /**
  * Model 3D ringan sudut gedung L & lapangan SMK Tiara Nusa
- * dilengkapi papan nama "SMK TIARA NUSA" yang ikut berputar dalam 3D.
+ * dilengkapi papan nama "SMK TIARA NUSA" dengan interaksi hover zoom-in halus.
  */
 export function SchoolCourt3D() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [preset, setPreset] = useState<CameraPreset>('corner');
-  const [autoRotate, setAutoRotate] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
-  const cameraRef = useRef({
-    yaw: PRESETS.corner.yaw,
-    pitch: PRESETS.corner.pitch,
-    zoom: PRESETS.corner.zoom,
-    targetYaw: PRESETS.corner.yaw,
-    targetPitch: PRESETS.corner.pitch,
-    targetZoom: PRESETS.corner.zoom,
-    dragging: false,
-    lastX: 0,
-    lastY: 0,
+  const cameraRef = useRef<{
+    yaw: number;
+    pitch: number;
+    zoom: number;
+    targetYaw: number;
+    targetPitch: number;
+    targetZoom: number;
+    hovered: boolean;
+  }>({
+    yaw: REST_CAMERA.yaw,
+    pitch: REST_CAMERA.pitch,
+    zoom: REST_CAMERA.zoom,
+    targetYaw: REST_CAMERA.yaw,
+    targetPitch: REST_CAMERA.pitch,
+    targetZoom: REST_CAMERA.zoom,
+    hovered: false,
   });
-
-  const autoRotateRef = useRef(autoRotate);
-  useEffect(() => {
-    autoRotateRef.current = autoRotate;
-  }, [autoRotate]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -467,6 +614,7 @@ export function SchoolCourt3D() {
 
     let rafId = 0;
     let sway = 0;
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const scene = buildCornerScene();
 
     function resize() {
@@ -488,13 +636,17 @@ export function SchoolCourt3D() {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
       const cam = cameraRef.current;
-      if (autoRotateRef.current && !cam.dragging) {
-        sway += 0.012;
-        cam.targetYaw = PRESETS.corner.yaw + Math.sin(sway) * 0.24;
+      if (!cam.hovered && !prefersReducedMotion) {
+        sway += 0.008;
+        cam.targetYaw = REST_CAMERA.yaw + Math.sin(sway) * 0.04;
+        cam.targetPitch = REST_CAMERA.pitch + Math.cos(sway * 0.7) * 0.012;
+        cam.targetZoom = REST_CAMERA.zoom;
       }
-      cam.yaw += (cam.targetYaw - cam.yaw) * 0.1;
-      cam.pitch += (cam.targetPitch - cam.pitch) * 0.1;
-      cam.zoom += (cam.targetZoom - cam.zoom) * 0.1;
+
+      const ease = prefersReducedMotion ? 1 : 0.075;
+      cam.yaw += (cam.targetYaw - cam.yaw) * ease;
+      cam.pitch += (cam.targetPitch - cam.pitch) * ease;
+      cam.zoom += (cam.targetZoom - cam.zoom) * ease;
 
       // Langit cerah berawan lembut selaras palet design.md
       const bg = ctx.createLinearGradient(0, 0, 0, height);
@@ -585,7 +737,14 @@ export function SchoolCourt3D() {
 
       // Gambar papan nama 3D "SMK TIARA NUSA" sejajar dengan perspektif dinding sayap kanan
       const tl = projectPoint(scene.signboard.topLeft, cam.yaw, cam.pitch, width, height, cam.zoom);
-      const tr = projectPoint(scene.signboard.topRight, cam.yaw, cam.pitch, width, height, cam.zoom);
+      const tr = projectPoint(
+        scene.signboard.topRight,
+        cam.yaw,
+        cam.pitch,
+        width,
+        height,
+        cam.zoom,
+      );
       const br = projectPoint(
         scene.signboard.bottomRight,
         cam.yaw,
@@ -657,84 +816,67 @@ export function SchoolCourt3D() {
     };
   }, []);
 
-  function applyPreset(next: CameraPreset) {
-    setPreset(next);
-    setAutoRotate(false);
-    cameraRef.current.targetYaw = PRESETS[next].yaw;
-    cameraRef.current.targetPitch = PRESETS[next].pitch;
-    cameraRef.current.targetZoom = PRESETS[next].zoom;
+  function handlePointerEnter() {
+    cameraRef.current.hovered = true;
+    cameraRef.current.targetZoom = HOVER_CAMERA.zoom;
+    setIsHovered(true);
+  }
+
+  function handlePointerMove(event: React.PointerEvent<HTMLDivElement>) {
+    const cam = cameraRef.current;
+    const rect = event.currentTarget.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) {
+      return;
+    }
+    // Posisi kursor ternormalisasi [-1, 1] untuk paralaks kamera halus
+    const nx = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    const ny = ((event.clientY - rect.top) / rect.height) * 2 - 1;
+    cam.hovered = true;
+    cam.targetYaw = REST_CAMERA.yaw - nx * HOVER_CAMERA.yawRange;
+    cam.targetPitch = Math.max(
+      0.14,
+      Math.min(0.42, REST_CAMERA.pitch + ny * HOVER_CAMERA.pitchRange),
+    );
+    cam.targetZoom = HOVER_CAMERA.zoom;
+  }
+
+  function handlePointerLeave() {
+    const cam = cameraRef.current;
+    cam.hovered = false;
+    cam.targetYaw = REST_CAMERA.yaw;
+    cam.targetPitch = REST_CAMERA.pitch;
+    cam.targetZoom = REST_CAMERA.zoom;
+    setIsHovered(false);
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-line bg-surface shadow-sm">
-      <div className="relative aspect-[16/10] w-full cursor-grab select-none active:cursor-grabbing">
-        <canvas
-          ref={canvasRef}
-          role="img"
-          aria-label="Model 3D sudut gedung dan lapangan SMK Tiara Nusa dengan papan nama SMK TIARA NUSA"
-          className="h-full w-full touch-none"
-          onPointerDown={(event) => {
-            const cam = cameraRef.current;
-            cam.dragging = true;
-            cam.lastX = event.clientX;
-            cam.lastY = event.clientY;
-            setAutoRotate(false);
-            event.currentTarget.setPointerCapture(event.pointerId);
-          }}
-          onPointerMove={(event) => {
-            const cam = cameraRef.current;
-            if (!cam.dragging) return;
-            const dx = event.clientX - cam.lastX;
-            const dy = event.clientY - cam.lastY;
-            cam.lastX = event.clientX;
-            cam.lastY = event.clientY;
-            // Batasi sudut agar tetap menghadap sudut dalam gedung L seperti foto
-            cam.targetYaw = Math.max(-1.12, Math.min(-0.18, cam.targetYaw + dx * 0.006));
-            cam.targetPitch = Math.max(0.1, Math.min(0.88, cam.targetPitch + dy * 0.005));
-          }}
-          onPointerUp={() => {
-            cameraRef.current.dragging = false;
-          }}
-          onPointerCancel={() => {
-            cameraRef.current.dragging = false;
-          }}
-        />
+    <div
+      onPointerEnter={handlePointerEnter}
+      onPointerMove={handlePointerMove}
+      onPointerLeave={handlePointerLeave}
+      className="group relative aspect-[16/10] w-full overflow-hidden rounded-[22px] bg-surface select-none"
+    >
+      <canvas
+        ref={canvasRef}
+        role="img"
+        aria-label="Model 3D sudut gedung dan lapangan SMK Tiara Nusa dengan papan nama SMK TIARA NUSA"
+        className="h-full w-full"
+      />
 
-        <span className="pointer-events-none absolute left-3 top-3 rounded-full border border-line bg-surface/90 px-2.5 py-1 text-[11px] font-semibold text-navy backdrop-blur-xs">
-          Model 3D SMK Tiara Nusa · Geser untuk memutar
-        </span>
-      </div>
+      {/* Vignette halus di bagian bawah agar label menyatu elegan */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-navy/25 via-navy/5 to-transparent"
+      />
 
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line bg-surface px-4 py-2.5">
-        <div className="flex flex-wrap gap-1.5">
-          {(Object.keys(PRESETS) as CameraPreset[]).map((key) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => applyPreset(key)}
-              className={`rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors ${
-                preset === key && !autoRotate
-                  ? 'border-navy bg-navy text-cream'
-                  : 'border-line bg-cream text-ink hover:border-navy'
-              }`}
-            >
-              {PRESETS[key].label}
-            </button>
-          ))}
-        </div>
-
-        <button
-          type="button"
-          onClick={() => setAutoRotate((prev) => !prev)}
-          aria-pressed={autoRotate}
-          className={`rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors ${
-            autoRotate
-              ? 'border-navy bg-blue/40 text-navy'
-              : 'border-line bg-cream text-muted hover:text-ink'
+      <div className="pointer-events-none absolute bottom-3.5 left-3.5 flex items-center gap-2 rounded-full border border-surface/60 bg-surface/85 px-3.5 py-1.5 text-[11px] font-semibold text-navy shadow-xs backdrop-blur-sm transition-all duration-500">
+        <span
+          aria-hidden="true"
+          className={`h-2 w-2 rounded-full transition-colors duration-300 ${
+            isHovered ? 'bg-orange' : 'bg-navy/50'
           }`}
-        >
-          {autoRotate ? 'Gerak Halus: Aktif' : 'Gerak Halus: Jeda'}
-        </button>
+        />
+        <span>SMK Tiara Nusa One &bull; Kampus Terpadu</span>
       </div>
     </div>
   );
