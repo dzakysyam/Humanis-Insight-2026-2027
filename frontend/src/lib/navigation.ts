@@ -179,6 +179,14 @@ const GENERAL_GROUPS: readonly NavGroup[] = [
         moduleKey: null,
         visibleTo: GENERAL_STAFF_ROLES,
       },
+      {
+        label: 'Dashboard Tracer Study',
+        href: '/modul/alumni',
+        description: 'Statistik agregat Tracer Study terhubung langsung untuk BK.',
+        icon: 'graduation',
+        moduleKey: 'ALUMNI',
+        visibleTo: ['BK', 'ADMIN'],
+      },
     ],
   },
   {
